@@ -1,3 +1,4 @@
+import { toast } from "sonner"
 import { useNavigate } from "react-router"
 import { useState } from "react"
 import { browserSupportsWebAuthn, startAuthentication, startRegistration,
@@ -27,6 +28,7 @@ export function Passkey({ enroll = false }: { enroll?: boolean }) {
       } else {
         const optionsJSON = await api<PublicKeyCredentialRequestOptionsJSON>("passkeys/login/options", "POST")
         await api("passkeys/login/verify", "POST", await startAuthentication({ optionsJSON }))
+        toast.success(t("Вы вошли в аккаунт."))
         navigate("/student")
       }
     } catch (failure) {

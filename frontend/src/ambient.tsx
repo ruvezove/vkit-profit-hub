@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react"
-import { Circle, Droplet, Leaf, Snowflake, Wind } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 
 type Weather = { effect: "snow" | "rain" | "hail" | "leaves" | "drift"; sparse: boolean }
-const icons = { snow: Snowflake, rain: Droplet, hail: Circle, leaves: Leaf, drift: Wind }
 const colors = {
   snow: ["#f4f6ff", "#a5bcf6"], rain: ["#6f9ee4", "#91b5ef"], hail: ["#d8e9ff", "#a5bcf6"],
   leaves: ["#da9a53", "#d17a66", "#e8ae69", "#f2edf5"], drift: ["#ad93d0", "#8d9fde"],
@@ -16,7 +14,7 @@ export function useAmbientWeather(active: boolean) {
     let mounted = true
     const update = () => {
       if (document.hidden) return
-      void api<Weather>("ambient").then(value => { if (mounted) setWeather(value) }).catch(() => {})
+      void api<Weather>("ambient").then(value => { if (mounted) setWeather(previous => previous?.effect === value.effect && previous.sparse === value.sparse ? previous : value) }).catch(() => {})
     }
     update()
     const timer = window.setInterval(update, 600_000)
@@ -26,32 +24,95 @@ export function useAmbientWeather(active: boolean) {
   return weather
 }
 
+type Particle = { x: number; y: number; vx: number; vy: number; r: number; angle: number; color: string }
+
 export function Ambient({ weather, active }: { weather: Weather; active: boolean }) {
-  const { effect, sparse } = weather
-  const Icon = icons[effect]
-  const palette = colors[effect]
-  const [generation, setGeneration] = useState(0)
-  useEffect(() => { if (active) setGeneration(value => value + 1) }, [active])
-  const fast = effect === "rain" || effect === "hail"
-  return <div className="ambient pointer-events-none absolute inset-0 z-0 overflow-hidden motion-reduce:hidden" data-active={active}
-    data-effect={effect} aria-hidden="true">
-    {Array.from({ length: sparse ? 9 : fast ? 38 : 25 }, (_, i) => <Icon key={generation + ":" + i} className="ambient-particle"
-      size={fast ? 7 + i % 4 * 2 : 11 + i % 4 * 4}
-      style={{ left: (6 + i * 37 % 88) + "%", color: palette[effect === "leaves" && i % 13 === 0 ? 3 : i % (effect === "leaves" ? 3 : 2)],
-        animationDelay: (i * 0.14) + "s", animationDuration: (fast ? 2.5 + i % 6 * 0.24 : 13 + i % 7) + "s" }} />)}
-  </div>
+  const canvas = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    if (!active || matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    const element = canvas.current!
+    const context = element.getContext("2d")
+    if (!context) return
+    const { effect, sparse } = weather
+    const rain = effect === "rain"
+    const hail = effect === "hail"
+    const leaf = effect === "leaves" || effect === "drift"
+    const palette = colors[effect]
+    const particles: Particle[] = []
+    const heap: Particle[] = []
+    const heights = new Map<number, number>()
+    let width = 0, height = 0, ground = 0, frame = 0, next = 0, time = 0
+    const resize = () => {
+      const bounds = element.getBoundingClientRect()
+      width = bounds.width
+      height = bounds.height
+      ground = height - (element.parentElement?.querySelector("footer")?.getBoundingClientRect().height ?? 0)
+      const ratio = Math.min(devicePixelRatio || 1, 1.4)
+      element.width = Math.max(1, Math.floor(width * ratio))
+      element.height = Math.max(1, Math.floor(height * ratio))
+      context.setTransform(ratio, 0, 0, ratio, 0, 0)
+      heap.length = 0
+      heights.clear()
+    }
+    const observer = new ResizeObserver(resize)
+    observer.observe(element)
+    resize()
+    function paint(p: Particle, opacity: number) {
+      context!.save()
+      context!.translate(p.x, p.y)
+      context!.rotate(p.angle)
+      context!.globalAlpha = opacity
+      context!.fillStyle = p.color
+      context!.beginPath()
+      context!.ellipse(0, 0, p.r, rain ? p.r * 3 : leaf ? p.r * .48 : p.r, 0, 0, 2*Math.PI)
+      context!.fill()
+      context!.restore()
+    }
+    const tick = (now: number) => {
+      const dt = Math.min(0.035, time ? (now-time)/1000 : 0.016)
+      time = now
+      const limit = sparse ? 28 : 85
+      if (particles.length < limit && now >= next && width > 24) {
+        const r = (rain || hail ? 1.8 : 3) + Math.random()*3
+        particles.push({x: r+Math.random()*(width-2*r), y:-10, vx: (Math.random()-.5)*(leaf ? 90 : 38),
+          vy: rain ? 450 : 52+Math.random()*40, r, angle: Math.random()*2,
+          color: palette[leaf && effect === "leaves" && Math.random() > .94 ? 3 : Math.floor(Math.random()*(effect === "leaves" ? 3 : palette.length))]})
+        next = now + (sparse ? 320 : rain ? 48 : 115)
+      }
+      context.clearRect(0,0,width,height)
+      for (const p of heap) paint(p, .72)
+      for (let i=particles.length-1; i>=0; i--) {
+        const p = particles[i]
+        p.vy = Math.min(rain ? 680 : hail ? 320 : leaf ? 160 : 135, p.vy+(rain ? 310 : hail ? 205 : 35)*dt)
+        p.x += (p.vx + (leaf ? Math.sin(now/550+p.angle)*30 : 0))*dt
+        p.y += p.vy*dt
+        p.angle += leaf ? dt*.9 : 0
+        if (p.x < p.r || p.x > width-p.r) {
+          p.x = Math.min(width-p.r, Math.max(p.r,p.x))
+          p.vx *= -.74
+        }
+        const bucket = Math.floor(p.x/12)
+        const pile = heights.get(bucket) ?? 0
+        const floor = ground - 2 - pile
+        if (!rain && p.y >= floor-p.r) {
+          particles.splice(i,1)
+          if (heap.length < 210 && pile < 44) {
+            p.y = floor-p.r
+            heap.push(p)
+            heights.set(bucket, pile+p.r*.85)
+          }
+        } else if (p.y > height+18) particles.splice(i,1)
+        else {
+          const fade = rain ? 1 : Math.max(0, Math.min(1,(floor-p.y)/(p.vy*.8)))
+          paint(p, fade)
+        }
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => { cancelAnimationFrame(frame); observer.disconnect() }
+  }, [active, weather])
+  return <canvas ref={canvas} className="weather-physics pointer-events-none absolute inset-0 z-0 size-full motion-reduce:hidden"
+    data-active={active} data-effect={weather.effect} aria-hidden="true" />
 }
 
-export function AmbientGround({ weather, active }: { weather: Weather; active: boolean }) {
-  const effect = weather.effect
-  const Icon = effect === "drift" ? Leaf : icons[effect]
-  const palette = colors[effect]
-  return <div className="ambient-ground pointer-events-none absolute bottom-0 left-1/2 h-20 w-full max-w-xl -translate-x-1/2 overflow-hidden" data-active={active}
-    data-effect={effect} aria-hidden="true">
-    {effect === "rain" ? <div className="ambient-puddle absolute inset-x-8 bottom-0 h-11 rounded-[50%]" />
-      : Array.from({ length: 38 }, (_, i) => <Icon key={i} className="absolute"
-        size={effect === "hail" ? 8 + i % 6 : 14 + i % 5 * 4}
-        style={{ left: (13 + i * 17 % 72) + "%", bottom: i * 13 % 42, color: palette[i % palette.length],
-          transform: "rotate(" + (i * 31 % 170 - 85) + "deg)" }} />)}
-  </div>
-}

@@ -1,3 +1,5 @@
+import { Toaster, toast } from "sonner"
+import { StudentSpace, PublicStudent } from "./student"
 import { BrowserRouter, useLocation, useNavigate } from "react-router"
 import { Go } from "./navigation"
 import { Devices, Passkey, type Device } from "./access"
@@ -13,7 +15,7 @@ import { Auth, ErrorMessage, Forgot, QrApprove, Result } from "./auth"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Settings, StudentProfile } from "./profile"
+import { Settings } from "./profile"
 import { api, type User } from "@/lib/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import "./styles.css"
@@ -111,7 +113,7 @@ function Dashboard({ admin }: { admin: boolean }) {
       </div>
       {error && <div className="mb-5"><ErrorMessage message={error} /></div>}
       {!user && !error && <p role="status" className="text-muted-foreground">{t("Загрузка кабинета…")}</p>}
-      {user && <Card className="max-w-lg">
+      {admin && user && <Card className="max-w-lg">
         <CardHeader>
           <CardTitle>{t("Профиль")}</CardTitle>
           <CardDescription>{t("Вы вошли как")} <strong className="text-foreground">{user.login}</strong></CardDescription>
@@ -120,14 +122,13 @@ function Dashboard({ admin }: { admin: boolean }) {
           {user.demo ? t("Демонстрационный аккаунт") : t("Дата регистрации · ") + date.format(new Date(user.createdAt!))}
         </CardContent>}
       </Card>}
-      {user && !admin && !user.demo && <>
-        <StudentProfile user={user} refresh={heartbeat} />
-        {user.email && <Card className="mt-6 max-w-2xl">
+      {user && !admin && <StudentSpace key={user.demo ? "demo" : user.card?.id} user={user} refresh={heartbeat} tools={!user.demo && <>
+        {user.email && <Card className="mt-5">
           <CardHeader><CardTitle>{t("Ключ доступа")}</CardTitle><CardDescription>{t("Для следующего входа используйте отпечаток, Face ID или PIN устройства.")}</CardDescription></CardHeader>
           <CardContent><Passkey enroll /></CardContent>
         </Card>}
         <Devices devices={deviceList} refresh={heartbeat} />
-      </>}
+      </>} />}
       {admin && roster && <Card className="mt-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Users className="size-4" /> {t("Зарегистрированные ученики")}</CardTitle>
@@ -152,6 +153,12 @@ function App() {
   const preferences = usePreferences()
   const weather = useAmbientWeather(preferences.ambient)
   const { pathname: path, search, hash } = useLocation()
+  useEffect(() => {
+    if (new URLSearchParams(search).get("signedIn") === "1" && path === "/student") {
+      toast.success(t("Вы вошли в аккаунт."))
+      history.replaceState(history.state, "", path)
+    }
+  }, [path, search])
   useEffect(() => {
     if (hash.startsWith("#") && path === "/") document.getElementById(hash.slice(1))?.scrollIntoView()
     else if (!hash) window.scrollTo({ top: 0, behavior: "instant" })
@@ -186,9 +193,10 @@ function App() {
         </nav>
       </header>
       <div key={path + search} className="route-enter relative z-[1] flex flex-1 flex-col">
-        {dashboard ? <Dashboard admin={path === "/admin"} /> : pages[path] ?? <Home weather={weather} ambient={preferences.ambient} />}
+        {dashboard ? <Dashboard admin={path === "/admin"} /> : path.startsWith("/u/") ? <PublicStudent id={path.slice(3)} /> : pages[path] ?? <Home />}
       </div>
       <BackToTop />
+      <Toaster theme={preferences.theme} position="bottom-right" />
       <footer className="relative z-[1] border-t border-border">
         <div className="mx-auto max-w-6xl px-5 py-5 text-sm text-muted-foreground sm:px-8">Profit Hub</div>
       </footer>

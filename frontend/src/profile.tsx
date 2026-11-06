@@ -27,11 +27,11 @@ export function StudentProfile({ user, refresh }: { user: User; refresh: () => P
   const qr = sessionStorage.getItem("profit_qr_pending")
   return <Card className="mt-6 max-w-2xl">
     <CardHeader>
-      <CardTitle>{!user.email ? t("Подтвердите почту") : editing ? t("Заполните профиль") : t("О себе")}</CardTitle>
-      <CardDescription>{user.email ?? t("Подтвердите адрес, чтобы заполнить профиль. Откройте ссылку из письма в этом браузере.")}</CardDescription>
+      <CardTitle>{!user.email && !user.demo ? t("Подтвердите почту") : editing ? t("Заполните профиль") : t("О себе")}</CardTitle>
+      <CardDescription>{user.demo ? null : user.email ?? t("Подтвердите адрес, чтобы заполнить профиль. Откройте ссылку из письма в этом браузере.")}</CardDescription>
     </CardHeader>
     <CardContent>
-      {!user.email ? sent ? <p role="status">{t(mailNotice)}</p> : <ActionForm action={async data => {
+      {!user.email && !user.demo ? sent ? <p role="status">{t(mailNotice)}</p> : <ActionForm action={async data => {
         await api("mail/legacy", "POST", { email: data.get("email") })
         setSent(true)
       }}><Email /></ActionForm> : editing ? <ActionForm label={t("Сохранить профиль")} action={async data => {
@@ -39,7 +39,11 @@ export function StudentProfile({ user, refresh }: { user: User; refresh: () => P
         data.delete("direction")
         const next = Object.fromEntries(Array.from(data, ([name, value]) => [name, String(value).trim()])) as Profile
         next.directions = selected
-        await api("profile", "POST", next)
+        if (user.demo) {
+          localStorage.setItem("profit-demo-resume", JSON.stringify(next))
+        } else {
+          await api("profile", "POST", next)
+        }
         await refresh()
         setEditing(false)
       }}>

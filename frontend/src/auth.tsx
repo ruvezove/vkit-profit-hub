@@ -1,3 +1,4 @@
+import { toast } from "sonner"
 import { useLocation, useNavigate } from "react-router"
 import { Go } from "./navigation"
 import { Modal } from "./modal"
@@ -114,6 +115,7 @@ export function Auth({ register }: { register: boolean }) {
         } else {
           const { role } = await api<{role: User["role"]}>("login", "POST", { login: data.get("login"), password: data.get("password"), ...(admin ? { mode: "admin" } : {}) })
           const qr = sessionStorage.getItem("profit_qr_pending") ?? ""
+          toast.success(t("Вы вошли в аккаунт."))
           navigate(role === "admin" ? "/admin" : tokenOkay.test(qr) ? "/auth/qr#" + qr : "/student")
         }
       }}>
@@ -145,13 +147,13 @@ export function Auth({ register }: { register: boolean }) {
           </>}
         </>}
         {register ? <p className="text-center text-sm text-muted-foreground">{t("Уже есть аккаунт?")} <Go className="text-primary underline" to="/login">{t("Войти")}</Go></p>
-          : <Go className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary" to={admin ? "/login" : "/login?mode=admin"}>
+          : <Go className="mx-auto flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary" to={admin ? "/login" : "/login?mode=admin"}>
             <ShieldCheck size={15} /> {t(admin ? "Вход ученика" : "Вход администратора")}
           </Go>}
       </>}
     </div>}
     <Modal open={showQr} onClose={() => setShowQr(false)} title={t("QR-код для входа")}>
-      {showQr && <QrLogin />}
+      <QrLogin />
     </Modal>
   </Panel>
 }
@@ -215,6 +217,7 @@ export function Result({ mail = false }: { mail?: boolean }) {
       setError(failure.message)
     })
   }, [mail])
+  useEffect(() => { if (status === "confirmed") toast.success(t("Аккаунт подтверждён")) }, [status])
   const result = status === "loading" ? { title: "Проверяем ссылку", description: "Подождите…" }
     : status === "error" ? { title: "Не удалось открыть ссылку", description: error }
     : Object.hasOwn(results, status) ? results[status] : results.oauth_error
@@ -225,7 +228,7 @@ export function Result({ mail = false }: { mail?: boolean }) {
   </Panel>
 }
 
-function QrLogin() {
+export function QrLogin() {
   const navigate = useNavigate()
   const [attempt, retry] = useState(0)
   const [qr, setQr] = useState<{ image: string; code: string }>()
@@ -241,7 +244,7 @@ function QrLogin() {
       try {
         const result = await api<{signedIn: boolean}>("qr/claim", "POST", { id })
         if (!active) return
-        if (result.signedIn) navigate("/student", { replace: true })
+        if (result.signedIn) { toast.success(t("Вы вошли в аккаунт.")); navigate("/student", { replace: true }) }
         else poll = window.setTimeout(() => void claim(id), 3000)
       } catch (failure) {
         if (active) setError(failure instanceof Error ? failure.message : "Запросите новый QR-код.")

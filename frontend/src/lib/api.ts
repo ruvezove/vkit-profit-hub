@@ -1,5 +1,7 @@
+export type PublicCard = { id: number; bio: string; avatar: string; banner: string }
+export type LearningResult = { day: string; direction: string; kind: "test" | "course"; xp: number; score: number | null }
 export type Profile = { name: string; nickname: string; skills: string; directions: string; experience: string; github: string }
-export type User = { role: "admin" | "student"; login: string; demo?: boolean; createdAt?: string; email?: string | null; profile?: Profile | null }
+export type User = { role: "admin" | "student"; login: string; demo?: boolean; createdAt?: string; email?: string | null; profile?: Profile | null; card?: PublicCard; progress?: LearningResult[] }
 
 export async function api<T = void>(path: string, method = "GET", body?: object): Promise<T> {
   const response = await fetch("/api/" + path, {

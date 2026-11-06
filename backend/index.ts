@@ -1,3 +1,4 @@
+import { publicCard, studentProgress } from "./student"
 import { ambientWeather } from "./weather"
 import { passkeyRoutes } from "./passkeys"
 import { devices, forgetDevice, sessionAge, touchDevice } from "./devices"
@@ -113,7 +114,7 @@ function userView(current: Session) {
   const student = findStudent(current.id)!
   const profile: Profile | null = student.profile ? JSON.parse(student.profile) : null
   return { role: "student", login: profile?.nickname ?? student.email ?? student.login,
-    email: student.email, createdAt: student.created_at, profile }
+    email: student.email, createdAt: student.created_at, profile, card: publicCard(student.id), progress: studentProgress(student.id) }
 }
 
 app.get("/api/me", async (request, reply) => {
@@ -149,6 +150,48 @@ app.post<{Body: TextBody}>("/api/sessions/rename", form({ id: 64, name: 60 }), a
   const changed = db.run("UPDATE device_sessions SET name=? WHERE id=? AND student_id=? AND version=? AND last_seen>?",
     [name.trim(), id, current.id, current.version, Date.now() - sessionAge * 1000])
   if (!changed.changes) return error(reply, 404, "Сессия не найдена.")
+  return reply.code(204).send()
+})
+
+app.get<{Params: {id: string}}>("/api/student/public/:id", async (request, reply) => {
+  const student = findStudent(Number(request.params.id))
+  if (!student?.profile) return error(reply, 404, "Профиль не найден.")
+  return { nickname: (JSON.parse(student.profile) as Profile).nickname, ...publicCard(student.id) }
+})
+
+app.get<{Params: {id: string; kind: string}}>("/api/student/public/:id/:kind", async (request, reply) => {
+  const { id, kind } = request.params
+  if (kind !== "avatar" && kind !== "banner") return reply.code(404).send()
+  const row = db.query<{ data: Uint8Array | null }, [number]>(
+    "SELECT " + kind + " AS data FROM student_cards WHERE student_id=?"
+  ).get(Number(id))
+  if (!row?.data) return reply.code(404).send()
+  return reply.type("image/jpeg").send(Buffer.from(row.data))
+})
+
+app.post<{Body: TextBody}>("/api/student/card", form({ bio: 500 }), async (request, reply) => {
+  const current = await session(request)
+  if (current?.role !== "student") return error(reply, 403, "Доступно только ученику.")
+  db.run("INSERT INTO student_cards(student_id,bio) VALUES (?,?) ON CONFLICT(student_id) DO UPDATE SET bio=excluded.bio",
+    [current.id, request.body.bio.trim()])
+  return reply.code(204).send()
+})
+
+app.post<{Params: {kind: string}; Body: TextBody}>("/api/student/card/:kind", {
+  ...form({ image: 400000 }, 8), bodyLimit: 405000,
+}, async (request, reply) => {
+  const current = await session(request)
+  const { kind } = request.params
+  if (current?.role !== "student") return error(reply, 403, "Доступно только ученику.")
+  if (kind !== "avatar" && kind !== "banner") return reply.code(404).send()
+  const encoded = request.body.image
+  const image = Buffer.from(encoded, "base64")
+  if (image.length < 5 || image[0] !== 255 || image[1] !== 216 || image[2] !== 255 ||
+      image.at(-2) !== 255 || image.at(-1) !== 217 || image.toString("base64") !== encoded) {
+    return error(reply, 400, "Выберите изображение.")
+  }
+  db.run("INSERT OR IGNORE INTO student_cards(student_id) VALUES (?)", [current.id])
+  db.run("UPDATE student_cards SET " + kind + "=?, " + kind + "_version=" + kind + "_version+1 WHERE student_id=?", [image,current.id])
   return reply.code(204).send()
 })
 
@@ -419,7 +462,7 @@ for (const provider of ["google", "yandex"] as const) {
       if (flow.mode === "login") {
         if (!existing) return reply.redirect("/auth/result?status=oauth_signup")
         await startSession(request, reply, studentSession(existing))
-        return reply.redirect("/student")
+        return reply.redirect("/student?signedIn=1")
       }
       if (existing || byEmail(email)) return reply.redirect("/auth/result?status=oauth_exists")
       if (provider === "google" && (email.endsWith("@gmail.com") || data.hd)) {
@@ -499,6 +542,7 @@ app.post<{Body: TextBody}>("/api/qr/claim", form({ id: 64 }, 40), async (request
   return { signedIn: true }
 })
 
+app.get("/u/:id", (_, reply) => reply.sendFile("index.html"))
 for (const path of ["/", "/login", "/register", "/student", "/admin", "/forgot", "/auth/smtp/callback", "/auth/result", "/auth/qr"]) {
   app.get(path, (_, reply) => reply.sendFile("index.html"))
 }

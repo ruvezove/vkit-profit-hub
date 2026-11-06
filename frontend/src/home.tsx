@@ -3,7 +3,6 @@ import Masonry, { ResponsiveMasonry } from "react-responsive-masonry"
 import { ArrowDownRight, ArrowRight, BookOpen, ChartNoAxesCombined, ClipboardCheck, CodeXml, Fingerprint, LogIn, ScanLine, UserRound, Users, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Reveal, reducedMotion } from "./brand"
-import { AmbientGround, useAmbientWeather } from "./ambient"
 import { useCatalog } from "./catalog"
 import { Go } from "./navigation"
 import { Modal } from "./modal"
@@ -38,16 +37,10 @@ function LearningPreview() {
   </div>
 }
 
-export function Home({ weather, ambient }: { weather?: ReturnType<typeof useAmbientWeather>; ambient: boolean }) {
+export function Home() {
   const catalog = useCatalog()
   const [choice, setChoice] = useState("")
   const light = document.documentElement.dataset.theme === "light"
-  const branches = new Map<string, string[]>()
-  for (const { name, branch } of catalog?.directions ?? []) {
-    const items = branches.get(branch) ?? []
-    items.push(name)
-    branches.set(branch, items)
-  }
   const stats = [
     { label: "Ученики", value: catalog?.students, icon: Users },
     { label: "Тесты", value: undefined, icon: ClipboardCheck },
@@ -77,14 +70,9 @@ export function Home({ weather, ambient }: { weather?: ReturnType<typeof useAmbi
     <section id="directions" className="home-section">
       <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{t("Направления")}</h2>
       <p className="mt-3 text-muted-foreground">{t("В профиле можно отметить несколько направлений.")}</p>
-      <ul className="direction-tree mt-6 grid gap-4 sm:grid-cols-3">
-        {Array.from(branches, ([branch, entries], index) => <li key={branch} className="rounded-2xl border border-border bg-card p-5">
-          <h3 className="font-semibold">{t(branch)}</h3>
-          <ul className="mt-3 flex flex-wrap gap-2">
-            {entries.map(name => <li key={name}><button type="button" className="direction-tag" data-branch={index % 3}
-              onClick={() => setChoice(name)}>{t(name)}</button></li>)}
-          </ul>
-        </li>)}
+      <ul className="direction-tree mt-6 flex flex-wrap gap-2 rounded-2xl border border-border bg-card p-5">
+        {catalog?.directions.map(({ name }, index) => <li key={name}><button type="button" className="direction-tag" data-branch={index % 3}
+          onClick={() => setChoice(name)}>{t(name)}</button></li>)}
       </ul>
       {!catalog && <p className="text-sm text-muted-foreground">{t("Загружаем направления…")}</p>}
     </section>
@@ -125,9 +113,8 @@ export function Home({ weather, ambient }: { weather?: ReturnType<typeof useAmbi
           <span className="mt-1 block text-sm text-muted-foreground">{t(label)}</span>
         </button>)}
       </div>
-      <p className="mt-4 text-sm text-muted-foreground">{t("Данные о тестах и успеваемости появятся позже.")}</p>
     </section>
-    {weather && <AmbientGround weather={weather} active={ambient} />}
+    <div className="h-20" aria-hidden="true" />
     <Modal open={Boolean(choice)} onClose={() => setChoice("")} title={t(choice)}
       description={t("Войдите в свой кабинет или создайте аккаунт.")}>
       <div className="flex flex-wrap gap-2">

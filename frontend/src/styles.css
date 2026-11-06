@@ -336,3 +336,35 @@ h1, h2, h3, [data-slot="card-title"] { font-family: Manrope, "Noto Sans", sans-s
 }
 
 
+
+@theme inline {
+  --color-sidebar: var(--card);
+  --color-sidebar-foreground: var(--foreground);
+  --color-sidebar-accent: var(--accent);
+  --color-sidebar-accent-foreground: var(--accent-foreground);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--ring);
+}
+.modal-content[data-state="closed"] { animation: modal-out 180ms ease-in both; }
+.modal-overlay[data-state="closed"] { animation: overlay-out 180ms ease-in both; }
+@keyframes modal-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(7px) scale(.985); }
+}
+@keyframes overlay-out { from { opacity: 1; } to { opacity: 0; } }
+
+.route-art { transition: border-color 200ms, box-shadow 200ms; }
+.route-art:hover { border-color: var(--ring); box-shadow: 0 12px 34px color-mix(in srgb, var(--primary) 15%, transparent); }
+.home-section button, main section:first-child button {
+  transition: background-color 180ms, color 180ms, border-color 180ms, translate 180ms, box-shadow 180ms;
+}
+.masonry-entry:hover, #statistics button:hover { translate: 0 -3px; }
+.weather-physics { opacity: 0; transition: opacity 450ms ease; }
+.weather-physics[data-active="true"] { opacity: .6; }
+@starting-style { .weather-physics[data-active="true"] { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .modal-content[data-state="closed"], .modal-overlay[data-state="closed"] { animation: none; }
+  .masonry-entry:hover, #statistics button:hover { translate: none; }
+}
+
+

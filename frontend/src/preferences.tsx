@@ -6,7 +6,7 @@ import { ArrowUp, Cloud, Moon, Sun } from "lucide-react"
 import { t } from "./locale"
 
 export function usePreferences() {
-  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === "light" ? "light" : "dark")
+  const [theme, setTheme] = useState<"dark" | "light">(() => document.documentElement.dataset.theme === "light" ? "light" : "dark")
   const [language, setLanguage] = useState(() => document.documentElement.lang === "kk" ? "kk" : "ru")
   const [ambient, setAmbient] = useState(() => localStorage.getItem("profit-ambient") === "on")
   return { theme, language, ambient,

@@ -50,7 +50,17 @@ db.transaction(() => {
     INSERT OR IGNORE INTO directions (name, branch, sort_order) VALUES
       ('Frontend', 'Разработка', 10), ('Backend', 'Разработка', 20),
       ('Дизайн', 'Продукт и качество', 30), ('Аналитика', 'Продукт и качество', 40),
-      ('Тестирование', 'Продукт и качество', 50), ('Другое', 'Другие направления', 60);
+      ('Тестирование', 'Продукт и качество', 50), ('Другое', 'Другие направления', 90), ('IT-Решения', 'Разработка', 60),
+      ('1С Бухгалтерия', 'Продукт и качество', 70);
+    CREATE TABLE IF NOT EXISTS student_cards (
+      student_id INTEGER PRIMARY KEY, bio TEXT NOT NULL DEFAULT '',
+      avatar BLOB, banner BLOB, avatar_version INTEGER NOT NULL DEFAULT 0, banner_version INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS learning_results (
+      student_id INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('test','course')),
+      activity_id TEXT NOT NULL, day TEXT NOT NULL, direction TEXT NOT NULL, xp INTEGER NOT NULL CHECK(xp>=0),
+      score REAL CHECK(score BETWEEN 0 AND 100), PRIMARY KEY(student_id,kind,activity_id)
+    );
     CREATE TABLE IF NOT EXISTS passkeys (
       id TEXT PRIMARY KEY, student_id INTEGER NOT NULL, public_key BLOB NOT NULL, counter INTEGER NOT NULL, rp TEXT NOT NULL
     );
