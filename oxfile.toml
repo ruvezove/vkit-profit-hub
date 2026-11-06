@@ -1,0 +1,7 @@
+version = 1
+
+[[apps]]
+name = "profit-hub"
+cwd = "/root/vkit-profit-hub"
+command = "/root/vkit-profit-hub/.runtime/bun --no-env-file --env-file=.env dist/backend/index.js"
+restart_policy = "on_failure"

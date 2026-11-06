@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <filter id="brand">
+    <feComponentTransfer>
+      <feFuncA type="linear" slope="1.65" intercept="-0.325"/>
+    </feComponentTransfer>
+  </filter>
+</svg>

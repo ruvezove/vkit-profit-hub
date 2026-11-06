@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      try {
+        const saved = localStorage.getItem("profit-theme");
+        document.documentElement.dataset.theme = saved === "light" || saved === "dark" ? saved : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.lang = localStorage.getItem("profit-language") === "kk" ? "kk" : "ru";
+      } catch {}
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#12101a" />
+    <title>Profit Hub — кабинет ученика</title>
+    <meta name="description" content="Profit Hub — платформа для учеников. Зарегистрируйтесь и заполните профиль." />
+    <link rel="canonical" href="%PROFIT_APP_URL%" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:site_name" content="Profit Hub" />
+    <meta property="og:title" content="Profit Hub — кабинет ученика" />
+    <meta property="og:description" content="Зарегистрируйтесь в Profit Hub и заполните профиль ученика." />
+    <meta property="og:url" content="%PROFIT_APP_URL%" />
+    <meta property="og:image" content="%PROFIT_BANNER_URL%" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:alt" content="Баннер Profit Hub" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Profit Hub — кабинет ученика" />
+    <meta name="twitter:description" content="Зарегистрируйтесь в Profit Hub и заполните профиль ученика." />
+    <meta name="twitter:image" content="%PROFIT_BANNER_URL%" />
+    <!-- favicon head -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
